@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <!-- CSP: Bloquea recursos externos no deseados, permite estilos locales en línea si es necesario y scripts locales -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bakery ERP — Control de Producción</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="tema-oscuro">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SIDEBAR — Menú lateral de navegación principal
+  ══════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">🍞</div>
+      <div class="logo-texto">
+        <span class="logo-nombre">Frater Panaderia</span>
+        <span class="logo-sub">Control de Producción</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item activo" data-vista="dashboard">
+        <span class="nav-icono">📊</span>
+        <span class="nav-texto">Dashboard</span>
+      </button>
+      <button class="nav-item" data-vista="produccion">
+        <span class="nav-icono">🏭</span>
+        <span class="nav-texto">Producción Diaria</span>
+      </button>
+      <button class="nav-item" data-vista="mermas">
+        <span class="nav-icono">⚠️</span>
+        <span class="nav-texto">Mermas</span>
+      </button>
+      <button class="nav-item" data-vista="reportes">
+        <span class="nav-icono">📈</span>
+        <span class="nav-texto">Reportes</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-tema" id="btnTema" title="Cambiar tema">
+        <span id="iconoTema">☀️</span> Modo Claro
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ÁREA PRINCIPAL DE CONTENIDO
+  ══════════════════════════════════════════════════════════════ -->
+  <main class="contenido-principal">
+
+    <!-- Barra superior con título dinámico y fecha -->
+    <header class="topbar">
+      <h1 class="topbar-titulo" id="tituloPagina">Dashboard</h1>
+      <div class="topbar-info">
+        <span class="fecha-actual" id="fechaActual"></span>
+        <div class="estado-guardado" id="estadoGuardado">
+          <span class="estado-dot"></span>
+          <span class="estado-texto">Datos sincronizados</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── VISTA: DASHBOARD ──────────────────────────────────── -->
+    <section class="vista" id="vista-dashboard">
+
+      <!-- Tarjetas de resumen del día -->
+      <div class="cards-grid">
+        <div class="card card-produccion">
+          <div class="card-icono">🏭</div>
+          <div class="card-data">
+            <span class="card-valor" id="card-total-producido">0</span>
+            <span class="card-label">Unidades Producidas Hoy</span>
+          </div>
+        </div>
+        <div class="card card-mermas">
+          <div class="card-icono">⚠️</div>
+          <div class="card-data">
+            <span class="card-valor" id="card-total-mermas">0</span>
+            <span class="card-label">Mermas del Día</span>
+          </div>
+        </div>
+        <div class="card card-ventas">
+          <div class="card-icono">✅</div>
+          <div class="card-data">
+            <span class="card-valor" id="card-total-ventas">0</span>
+            <span class="card-label">Ventas Estimadas (und.)</span>
+          </div>
+        </div>
+        <div class="card card-ingresos">
+          <div class="card-icono">💰</div>
+          <div class="card-data">
+            <span class="card-valor" id="card-total-ingresos">$0.00</span>
+            <span class="card-label">Ingresos Estimados</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertas: Top 3 productos con mayor tasa de merma -->
+      <div class="seccion-alertas">
+        <h2 class="seccion-titulo">⚠️ Alerta: Mayor Tasa de Merma (últimos 7 días)</h2>
+        <div class="alertas-grid" id="alertas-mermas">
+          <p class="sin-datos">Sin datos suficientes todavía.</p>
+        </div>
+      </div>
+
+      <!-- Gráficos de tendencias y correlaciones (Solicitado por el usuario) -->
+      <div class="seccion-graficos">
+        <h2 class="seccion-titulo">📈 Gráficos de Producción, Mermas e Ingresos</h2>
+        <div class="graficos-grid">
+          <div class="grafico-card">
+            <h3>Producción vs Mermas (Últimos 7 días)</h3>
+            <canvas id="chartBarras"></canvas>
+          </div>
+          <div class="grafico-card">
+            <h3>Tendencias y Pérdidas ($)</h3>
+            <canvas id="chartLineas"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── VISTA: PRODUCCIÓN DIARIA ──────────────────────────── -->
+    <section class="vista oculto" id="vista-produccion">
+
+      <div class="filtros-barra">
+        <label for="fechaProduccion">📅 Fecha:</label>
+        <input type="date" id="fechaProduccion" class="input-fecha" />
+        <button class="btn btn-primario" id="btnGuardarProduccion">
+          💾 Guardar Producción del Día
+        </button>
+      </div>
+
+      <div class="tabla-contenedor">
+        <table class="tabla-datos" id="tablaProduccion">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th class="col-numero">Cantidad Producida</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProduccion">
+            <!-- Filas generadas dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- ── VISTA: MERMAS Y VENCIMIENTOS ──────────────────────── -->
+    <section class="vista oculto" id="vista-mermas">
+
+      <div class="filtros-barra">
+        <label for="fechaMermas">📅 Fecha:</label>
+        <input type="date" id="fechaMermas" class="input-fecha" />
+        <button class="btn btn-advertencia" id="btnGuardarMermas">
+          ⚠️ Registrar Mermas
+        </button>
+      </div>
+
+      <div class="tabla-contenedor">
+        <table class="tabla-datos" id="tablaMermas">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th class="col-numero">Producido</th>
+              <th class="col-numero">Unidades Vencidas</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMermas">
+            <!-- Filas generadas dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- ── VISTA: REPORTES Y BALANCE ─────────────────────────── -->
+    <section class="vista oculto" id="vista-reportes">
+
+      <div class="filtros-barra">
+        <label>📅 Rango:</label>
+        <select id="filtroRango" class="input-select">
+          <option value="dia">Hoy</option>
+          <option value="semana">Última semana</option>
+          <option value="mes">Último mes</option>
+          <option value="personalizado">Personalizado</option>
+        </select>
+        <input type="date" id="reporteFechaInicio" class="input-fecha oculto" />
+        <input type="date" id="reporteFechaFin"    class="input-fecha oculto" />
+        <button class="btn btn-primario" id="btnGenerarReporte">
+          📊 Generar Reporte
+        </button>
+      </div>
+
+      <!-- Resumen de totales del reporte -->
+      <div class="reporte-resumen" id="reporteResumen" style="display:none;">
+        <div class="resumen-item">
+          <span class="resumen-label">Total Producido</span>
+          <span class="resumen-valor" id="rTotalProducido">0</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-label">Total Mermas</span>
+          <span class="resumen-valor rojo" id="rTotalMermas">0</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-label">Total Ventas</span>
+          <span class="resumen-valor verde" id="rTotalVentas">0</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-label">Ingresos Estimados</span>
+          <span class="resumen-valor dorado" id="rTotalIngresos">$0.00</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-label">Pérdidas por Merma</span>
+          <span class="resumen-valor rojo" id="rTotalPerdidas">$0.00</span>
+        </div>
+      </div>
+
+      <div class="tabla-contenedor">
+        <table class="tabla-datos" id="tablaReporte">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th class="col-numero">Producción</th>
+              <th class="col-numero">Mermas</th>
+              <th class="col-numero">Ventas Reales</th>
+              <th class="col-numero">Ingreso Est. ($)</th>
+              <th class="col-numero">Pérdida Merma ($)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyReporte">
+            <tr><td colspan="7" class="sin-datos">Genera un reporte para ver los datos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast de notificaciones -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Carga de scripts en el orden correcto -->
+  <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
+  <script src="storage.js"></script>
+  <script src="ventas.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

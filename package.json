@@ -1,0 +1,31 @@
+{
+  "name": "bakery-erp",
+  "version": "1.0.0",
+  "description": "Sistema local de control de producción y mermas para panadería",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --inspect"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "electron": "^41.9.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.bakery.erp",
+    "productName": "Bakery ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "data/**/*"
+    ]
+  }
+}
