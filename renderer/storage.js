@@ -125,17 +125,26 @@ const StorageManager = (() => {
       console.log(`[Storage] Catálogo guardado: ${_catalogo.length} productos.`);
     },
 
-    /** Actualiza solo los nombres del catálogo y los persiste */
-    async actualizarNombresCatalogo(productosEditados) {
-      const nombresPorId = new Map(
-        productosEditados.map(producto => [producto.id, producto.nombre])
+    /** Actualiza nombre, costo y precio del catálogo y los persiste */
+    async actualizarCatalogo(productosEditados) {
+      const productosPorId = new Map(
+        productosEditados.map(producto => [producto.id, producto])
       );
 
       _catalogo = _catalogo.map(producto => {
-        const nombreEditado = nombresPorId.get(producto.id);
+        const productoEditado = productosPorId.get(producto.id);
+
+        if (!productoEditado) {
+          return producto;
+        }
+
         return {
           ...producto,
-          nombre: typeof nombreEditado === 'string' ? nombreEditado.trim() : producto.nombre
+          nombre: typeof productoEditado.nombre === 'string'
+            ? productoEditado.nombre.trim()
+            : producto.nombre,
+          costo_unitario: Number(productoEditado.costo_unitario),
+          precio_venta: Number(productoEditado.precio_venta)
         };
       });
 
@@ -148,7 +157,10 @@ const StorageManager = (() => {
       const catalogoPersistido = await window.bakeryAPI.leerCatalogo();
       const cambiosPendientes = productosEditados.filter(producto => {
         const persistido = catalogoPersistido.find(item => item.id === producto.id);
-        return !persistido || persistido.nombre !== producto.nombre;
+        return !persistido ||
+          persistido.nombre !== producto.nombre ||
+          Number(persistido.costo_unitario) !== Number(producto.costo_unitario) ||
+          Number(persistido.precio_venta) !== Number(producto.precio_venta);
       });
 
       if (cambiosPendientes.length > 0) {
@@ -157,7 +169,7 @@ const StorageManager = (() => {
       }
 
       _catalogo = catalogoPersistido;
-      console.log('[Storage] Nombres del catálogo actualizados.');
+      console.log('[Storage] Catálogo actualizado.');
       return [..._catalogo];
     },
 

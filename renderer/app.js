@@ -207,28 +207,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Eventos de Catálogo
   // ─────────────────────────────────────────────
   btnGuardarCatalogo.addEventListener('click', async () => {
-    const inputs = tbodyCatalogo.querySelectorAll('.input-nombre-producto');
+    const filas = tbodyCatalogo.querySelectorAll('tr');
     const productosEditados = [];
     let hayErrores = false;
 
-    inputs.forEach(input => {
-      const nombre = input.value.trim().replace(/\s+/g, ' ');
-      input.value = nombre;
-      input.classList.remove('input-error');
+    filas.forEach(fila => {
+      const inputNombre = fila.querySelector('.input-nombre-producto');
+      const inputCosto = fila.querySelector('.input-costo-producto');
+      const inputPrecio = fila.querySelector('.input-precio-producto');
+
+      if (!inputNombre || !inputCosto || !inputPrecio) {
+        return;
+      }
+
+      const nombre = inputNombre.value.trim().replace(/\s+/g, ' ');
+      const costo = Number(inputCosto.value);
+      const precio = Number(inputPrecio.value);
+
+      inputNombre.value = nombre;
+      inputNombre.classList.remove('input-error');
+      inputCosto.classList.remove('input-error');
+      inputPrecio.classList.remove('input-error');
 
       if (!nombre) {
-        input.classList.add('input-error');
+        inputNombre.classList.add('input-error');
+        hayErrores = true;
+      }
+
+      if (!Number.isFinite(costo) || costo < 0) {
+        inputCosto.classList.add('input-error');
+        hayErrores = true;
+      }
+
+      if (!Number.isFinite(precio) || precio < 0) {
+        inputPrecio.classList.add('input-error');
         hayErrores = true;
       }
 
       productosEditados.push({
-        id: input.getAttribute('data-id'),
-        nombre
+        id: inputNombre.getAttribute('data-id'),
+        nombre,
+        costo_unitario: costo,
+        precio_venta: precio
       });
     });
 
     if (hayErrores) {
-      mostrarToast('Todos los productos deben tener un nombre válido', 'error');
+      mostrarToast('Revise nombres, costo y precio. No se permiten valores vacíos o negativos', 'error');
       return;
     }
 
@@ -248,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       marcarSincronizado(false);
-      await StorageManager.actualizarNombresCatalogo(productosEditados);
+      await StorageManager.actualizarCatalogo(productosEditados);
       marcarSincronizado(true);
 
       inputClaveCatalogo.value = '';
@@ -380,8 +405,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                  maxlength="80" />
         </td>
         <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
-        <td class="col-numero">$${Number(prod.costo_unitario).toFixed(2)}</td>
-        <td class="col-numero">$${Number(prod.precio_venta).toFixed(2)}</td>
+        <td class="col-numero">
+          <input type="number"
+                 class="input-costo-producto"
+                 data-id="${prod.id}"
+                 value="${Number(prod.costo_unitario).toFixed(2)}"
+                 min="0"
+                 step="0.01"
+                 inputmode="decimal" />
+        </td>
+        <td class="col-numero">
+          <input type="number"
+                 class="input-precio-producto"
+                 data-id="${prod.id}"
+                 value="${Number(prod.precio_venta).toFixed(2)}"
+                 min="0"
+                 step="0.01"
+                 inputmode="decimal" />
+        </td>
       `;
       tbodyCatalogo.appendChild(tr);
     });

@@ -542,7 +542,9 @@ body {
 .col-numero input { text-align: right; }
 
 /* Inputs numéricos dentro de la tabla */
-.input-cantidad {
+.input-cantidad,
+.input-costo-producto,
+.input-precio-producto {
   width: 100px;
   padding: 8px 12px;
   border: 1px solid var(--borde);
@@ -556,12 +558,16 @@ body {
   transition: all var(--transicion);
 }
 
-.input-cantidad:focus {
+.input-cantidad:focus,
+.input-costo-producto:focus,
+.input-precio-producto:focus {
   border-color: var(--acento-azul);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-.input-cantidad.input-error {
+.input-cantidad.input-error,
+.input-costo-producto.input-error,
+.input-precio-producto.input-error {
   border-color: var(--acento-rojo);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
