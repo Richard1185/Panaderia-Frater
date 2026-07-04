@@ -78,10 +78,14 @@ const StorageManager = (() => {
   ];
 
   function normalizarProductoCatalogo(producto) {
+    const categoria = typeof producto?.categoria === 'string'
+      ? producto.categoria.trim().replace(/\s+/g, ' ')
+      : '';
     const pesoUnitario = Number(producto?.peso_unitario);
 
     return {
       ...producto,
+      categoria: categoria || 'General',
       visible_en_produccion: producto?.visible_en_produccion !== false,
       peso_unitario: Number.isFinite(pesoUnitario) && pesoUnitario >= 0 ? pesoUnitario : 0
     };
@@ -135,28 +139,20 @@ const StorageManager = (() => {
       console.log(`[Storage] Catálogo guardado: ${_catalogo.length} productos.`);
     },
 
-    /** Actualiza nombre, costo, precio y metadatos de producción del catálogo y los persiste */
+    /** Reemplaza el catálogo completo y persiste cambios, incluyendo nuevos productos y categorías */
     async actualizarCatalogo(productosEditados) {
-      const productosPorId = new Map(
-        productosEditados.map(producto => [producto.id, producto])
-      );
-
-      _catalogo = _catalogo.map(producto => {
-        const productoEditado = productosPorId.get(producto.id);
-
-        if (!productoEditado) {
-          return producto;
-        }
+      _catalogo = productosEditados.map(producto => {
+        const productoNormalizado = normalizarProductoCatalogo(producto);
 
         return {
-          ...normalizarProductoCatalogo(producto),
-          nombre: typeof productoEditado.nombre === 'string'
-            ? productoEditado.nombre.trim()
-            : producto.nombre,
-          costo_unitario: Number(productoEditado.costo_unitario),
-          precio_venta: Number(productoEditado.precio_venta),
-          visible_en_produccion: productoEditado.visible_en_produccion !== false,
-          peso_unitario: Number(productoEditado.peso_unitario)
+          ...productoNormalizado,
+          nombre: typeof productoNormalizado.nombre === 'string'
+            ? productoNormalizado.nombre.trim().replace(/\s+/g, ' ')
+            : '',
+          costo_unitario: Number(productoNormalizado.costo_unitario),
+          precio_venta: Number(productoNormalizado.precio_venta),
+          visible_en_produccion: productoNormalizado.visible_en_produccion !== false,
+          peso_unitario: Number(productoNormalizado.peso_unitario)
         };
       });
 
@@ -167,19 +163,21 @@ const StorageManager = (() => {
       }
 
       const catalogoPersistido = (await window.bakeryAPI.leerCatalogo()).map(normalizarProductoCatalogo);
-      const cambiosPendientes = productosEditados.filter(producto => {
+      const cambiosPendientes = _catalogo.filter(producto => {
         const persistido = catalogoPersistido.find(item => item.id === producto.id);
         return !persistido ||
           persistido.nombre !== producto.nombre ||
+          persistido.categoria !== producto.categoria ||
           Number(persistido.costo_unitario) !== Number(producto.costo_unitario) ||
           Number(persistido.precio_venta) !== Number(producto.precio_venta) ||
           Boolean(persistido.visible_en_produccion) !== Boolean(producto.visible_en_produccion) ||
           Number(persistido.peso_unitario) !== Number(producto.peso_unitario);
       });
 
-      if (cambiosPendientes.length > 0) {
+      if (catalogoPersistido.length !== _catalogo.length || cambiosPendientes.length > 0) {
         const idsPendientes = cambiosPendientes.map(producto => producto.id).join(', ');
-        throw new Error(`No se pudieron persistir los cambios para: ${idsPendientes}`);
+        const detalle = idsPendientes || 'conteo del catálogo';
+        throw new Error(`No se pudieron persistir los cambios para: ${detalle}`);
       }
 
       _catalogo = catalogoPersistido;

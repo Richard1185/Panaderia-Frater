@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Catálogo
   const tbodyCatalogo      = document.getElementById('tbodyCatalogo');
+  const btnAgregarProductoCatalogo = document.getElementById('btnAgregarProductoCatalogo');
   const btnGuardarCatalogo = document.getElementById('btnGuardarCatalogo');
   const inputClaveCatalogo = document.getElementById('inputClaveCatalogo');
 
@@ -210,32 +211,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filas = tbodyCatalogo.querySelectorAll('tr');
     const productosEditados = [];
     let hayErrores = false;
+    let siguienteSecuenciaCatalogo = obtenerSiguienteSecuenciaCatalogo();
 
     filas.forEach(fila => {
       const inputNombre = fila.querySelector('.input-nombre-producto');
+      const inputCategoria = fila.querySelector('.input-categoria-producto');
       const inputCosto = fila.querySelector('.input-costo-producto');
       const inputPrecio = fila.querySelector('.input-precio-producto');
       const inputVisible = fila.querySelector('.input-visible-produccion');
       const inputPeso = fila.querySelector('.input-peso-producto');
 
-      if (!inputNombre || !inputCosto || !inputPrecio || !inputVisible || !inputPeso) {
+      if (!inputNombre || !inputCategoria || !inputCosto || !inputPrecio || !inputVisible || !inputPeso) {
         return;
       }
 
       const nombre = inputNombre.value.trim().replace(/\s+/g, ' ');
+      const categoria = inputCategoria.value.trim().replace(/\s+/g, ' ');
       const costo = Number(inputCosto.value);
       const precio = Number(inputPrecio.value);
       const peso = Number(inputPeso.value);
       const visibleEnProduccion = inputVisible.checked;
 
       inputNombre.value = nombre;
+      inputCategoria.value = categoria;
       inputNombre.classList.remove('input-error');
+      inputCategoria.classList.remove('input-error');
       inputCosto.classList.remove('input-error');
       inputPrecio.classList.remove('input-error');
       inputPeso.classList.remove('input-error');
 
       if (!nombre) {
         inputNombre.classList.add('input-error');
+        hayErrores = true;
+      }
+
+      if (!categoria) {
+        inputCategoria.classList.add('input-error');
         hayErrores = true;
       }
 
@@ -254,9 +265,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         hayErrores = true;
       }
 
+      const esNuevo = inputNombre.getAttribute('data-es-nuevo') === 'true';
+      const idProducto = esNuevo
+        ? asignarNuevoIdCatalogo(fila, siguienteSecuenciaCatalogo++)
+        : inputNombre.getAttribute('data-id');
+
       productosEditados.push({
-        id: inputNombre.getAttribute('data-id'),
+        id: idProducto,
         nombre,
+        categoria,
         costo_unitario: costo,
         precio_venta: precio,
         visible_en_produccion: visibleEnProduccion,
@@ -265,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     if (hayErrores) {
-      mostrarToast('Revise nombres, costo, precio y peso. No se permiten valores vacíos o negativos', 'error');
+      mostrarToast('Revise nombre, categoría, costo, precio y peso. No se permiten valores vacíos o negativos', 'error');
       return;
     }
 
@@ -300,6 +317,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error guardando catálogo:', error);
       marcarSincronizado(true);
       mostrarToast(`No se pudo guardar el catálogo: ${error.message || error}`, 'error');
+    }
+  });
+
+  btnAgregarProductoCatalogo.addEventListener('click', () => {
+    const filaNueva = construirFilaCatalogo({
+      id: '',
+      nombre: '',
+      categoria: '',
+      costo_unitario: 0,
+      precio_venta: 0,
+      visible_en_produccion: true,
+      peso_unitario: 0
+    }, tbodyCatalogo.children.length, true);
+
+    tbodyCatalogo.appendChild(filaNueva);
+    const inputNombre = filaNueva.querySelector('.input-nombre-producto');
+    if (inputNombre) {
+      inputNombre.focus();
     }
   });
 
@@ -405,63 +440,125 @@ document.addEventListener('DOMContentLoaded', async () => {
       .filter(prod => prod.visible_en_produccion !== false);
   }
 
+  function normalizarCategoriaParaClase(categoria) {
+    const categoriaNormalizada = (categoria || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+
+    const categoriasConEstilo = new Set(['salado', 'dulce', 'pasteleria', 'especial']);
+    return categoriasConEstilo.has(categoriaNormalizada) ? categoriaNormalizada : 'generica';
+  }
+
+  function renderBadgeCategoria(categoria) {
+    return `<span class="badge-categoria badge-${normalizarCategoriaParaClase(categoria)}">${categoria}</span>`;
+  }
+
+  function construirIdProductoCatalogo(secuencia) {
+    return `PAN-${String(secuencia).padStart(3, '0')}`;
+  }
+
+  function obtenerSiguienteSecuenciaCatalogo() {
+    return StorageManager.obtenerCatalogo().reduce((maximo, producto) => {
+      const coincidencia = /^PAN-(\d+)$/.exec(producto.id || '');
+      const numero = coincidencia ? Number(coincidencia[1]) : 0;
+      return Math.max(maximo, numero);
+    }, 0) + 1;
+  }
+
+  function asignarNuevoIdCatalogo(fila, secuencia) {
+    const nuevoId = construirIdProductoCatalogo(secuencia);
+    const elementosConId = fila.querySelectorAll('[data-id]');
+    elementosConId.forEach(elemento => {
+      elemento.setAttribute('data-id', nuevoId);
+    });
+
+    const inputNombre = fila.querySelector('.input-nombre-producto');
+    if (inputNombre) {
+      inputNombre.setAttribute('data-es-nuevo', 'false');
+    }
+
+    const codigoProducto = fila.querySelector('.codigo-producto');
+    if (codigoProducto) {
+      codigoProducto.textContent = nuevoId;
+    }
+
+    return nuevoId;
+  }
+
+  function construirFilaCatalogo(prod, index, esNuevo = false) {
+    const tr = document.createElement('tr');
+    const visibleEnProduccion = prod.visible_en_produccion !== false;
+    const etiquetaId = prod.id || 'Nuevo';
+
+    tr.innerHTML = `
+      <td>${index + 1}</td>
+      <td><span class="codigo-producto">${etiquetaId}</span></td>
+      <td>
+        <input type="text"
+               class="input-nombre-producto"
+               data-id="${prod.id || ''}"
+               data-es-nuevo="${esNuevo}"
+               value="${prod.nombre || ''}"
+               maxlength="80" />
+      </td>
+      <td>
+        <input type="text"
+               class="input-categoria-producto"
+               data-id="${prod.id || ''}"
+               value="${prod.categoria || ''}"
+               maxlength="40" />
+      </td>
+      <td class="col-numero">
+        <input type="number"
+               class="input-costo-producto"
+               data-id="${prod.id || ''}"
+               value="${Number(prod.costo_unitario || 0).toFixed(2)}"
+               min="0"
+               step="0.01"
+               inputmode="decimal" />
+      </td>
+      <td class="col-numero">
+        <input type="number"
+               class="input-precio-producto"
+               data-id="${prod.id || ''}"
+               value="${Number(prod.precio_venta || 0).toFixed(2)}"
+               min="0"
+               step="0.01"
+               inputmode="decimal" />
+      </td>
+      <td class="col-centro">
+        <label class="checkbox-catalogo">
+          <input type="checkbox"
+                 class="input-visible-produccion"
+                 data-id="${prod.id || ''}"
+                 ${visibleEnProduccion ? 'checked' : ''} />
+          <span>Mostrar</span>
+        </label>
+      </td>
+      <td class="col-numero">
+        <input type="number"
+               class="input-peso-producto"
+               data-id="${prod.id || ''}"
+               value="${Number(prod.peso_unitario || 0).toFixed(2)}"
+               min="0"
+               step="0.01"
+               inputmode="decimal" />
+      </td>
+    `;
+
+    return tr;
+  }
+
   function cargarTablaCatalogo() {
     const catalogo = StorageManager.obtenerCatalogo();
 
     tbodyCatalogo.innerHTML = '';
 
     catalogo.forEach((prod, index) => {
-      const tr = document.createElement('tr');
-      const visibleEnProduccion = prod.visible_en_produccion !== false;
-      tr.innerHTML = `
-        <td>${index + 1}</td>
-        <td><span class="codigo-producto">${prod.id}</span></td>
-        <td>
-          <input type="text"
-                 class="input-nombre-producto"
-                 data-id="${prod.id}"
-                 value="${prod.nombre}"
-                 maxlength="80" />
-        </td>
-        <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
-        <td class="col-numero">
-          <input type="number"
-                 class="input-costo-producto"
-                 data-id="${prod.id}"
-                 value="${Number(prod.costo_unitario).toFixed(2)}"
-                 min="0"
-                 step="0.01"
-                 inputmode="decimal" />
-        </td>
-        <td class="col-numero">
-          <input type="number"
-                 class="input-precio-producto"
-                 data-id="${prod.id}"
-                 value="${Number(prod.precio_venta).toFixed(2)}"
-                 min="0"
-                 step="0.01"
-                 inputmode="decimal" />
-        </td>
-        <td class="col-centro">
-          <label class="checkbox-catalogo">
-            <input type="checkbox"
-                   class="input-visible-produccion"
-                   data-id="${prod.id}"
-                   ${visibleEnProduccion ? 'checked' : ''} />
-            <span>Mostrar</span>
-          </label>
-        </td>
-        <td class="col-numero">
-          <input type="number"
-                 class="input-peso-producto"
-                 data-id="${prod.id}"
-                 value="${Number(prod.peso_unitario || 0).toFixed(2)}"
-                 min="0"
-                 step="0.01"
-                 inputmode="decimal" />
-        </td>
-      `;
-      tbodyCatalogo.appendChild(tr);
+      tbodyCatalogo.appendChild(construirFilaCatalogo(prod, index));
     });
   }
 
@@ -481,7 +578,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.innerHTML = `
         <td>${index + 1}</td>
         <td><strong>${prod.nombre}</strong></td>
-        <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
+        <td>${renderBadgeCategoria(prod.categoria)}</td>
         <td class="col-numero">
           <input type="number" 
                  class="input-cantidad" 
@@ -514,7 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.innerHTML = `
         <td>${index + 1}</td>
         <td><strong>${prod.nombre}</strong></td>
-        <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
+        <td>${renderBadgeCategoria(prod.categoria)}</td>
         <td class="col-numero col-producido">${producido}</td>
         <td class="col-numero">
           <input type="number" 
@@ -632,7 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${prod.producto}</strong></td>
-          <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
+          <td>${renderBadgeCategoria(prod.categoria)}</td>
           <td class="col-numero">${prod.produccion}</td>
           <td class="col-numero rojo">${prod.mermas}</td>
           <td class="col-numero verde">${prod.ventas}</td>

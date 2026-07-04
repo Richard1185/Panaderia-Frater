@@ -599,6 +599,29 @@ body {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
+.input-categoria-producto {
+  width: 100%;
+  min-width: 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-base);
+  background-color: var(--bg-input);
+  color: var(--texto-primario);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transicion);
+}
+
+.input-categoria-producto:focus {
+  border-color: var(--acento-azul);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.input-categoria-producto.input-error {
+  border-color: var(--acento-rojo);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
 .codigo-producto {
   font-family: var(--fuente-mono);
   color: var(--texto-secundario);
@@ -652,6 +675,7 @@ body {
 .badge-dulce     { background: rgba(245, 158, 11, 0.15); color: var(--acento-dorado); }
 .badge-pasteleria{ background: rgba(139, 92, 246, 0.15); color: var(--acento-morado); }
 .badge-especial  { background: rgba(16, 185, 129, 0.15); color: var(--acento-verde); }
+.badge-generica  { background: rgba(148, 163, 184, 0.18); color: var(--texto-secundario); }
 
 /* ══════════════════════════════════════════════════════════════════
    REPORTE — Resumen de totales
