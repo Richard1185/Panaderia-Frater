@@ -416,6 +416,30 @@ body {
 
 .filtros-barra label { font-size: 13px; color: var(--texto-secundario); font-weight: 600; }
 
+.filtros-barra-catalogo {
+  justify-content: space-between;
+}
+
+.catalogo-ayuda {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.catalogo-ayuda strong {
+  font-size: 14px;
+  color: var(--texto-primario);
+}
+
+.catalogo-ayuda span {
+  font-size: 12px;
+  color: var(--texto-secundario);
+}
+
+.input-clave-catalogo {
+  min-width: 180px;
+}
+
 .input-fecha,
 .input-select {
   padding: 10px 16px;
@@ -542,6 +566,36 @@ body {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
+.input-nombre-producto {
+  width: 100%;
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-base);
+  background-color: var(--bg-input);
+  color: var(--texto-primario);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transicion);
+}
+
+.input-nombre-producto:focus {
+  border-color: var(--acento-azul);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.input-nombre-producto.input-error {
+  border-color: var(--acento-rojo);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.codigo-producto {
+  font-family: var(--fuente-mono);
+  color: var(--texto-secundario);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* Select de motivo en tabla de mermas */
 .select-motivo {
   padding: 8px 12px;
@@ -652,3 +706,17 @@ body {
 .toast.exito { border-left-color: var(--acento-verde); }
 .toast.error { border-left-color: var(--acento-rojo); }
 .toast.advertencia { border-left-color: var(--acento-dorado); }
+
+@media (max-width: 768px) {
+  .filtros-barra-catalogo {
+    align-items: stretch;
+  }
+
+  .input-nombre-producto {
+    min-width: 160px;
+  }
+
+  .input-clave-catalogo {
+    min-width: 100%;
+  }
+}

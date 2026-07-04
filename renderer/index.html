@@ -40,6 +40,10 @@
         <span class="nav-icono">📈</span>
         <span class="nav-texto">Reportes</span>
       </button>
+      <button class="nav-item" data-vista="catalogo">
+        <span class="nav-icono">✏️</span>
+        <span class="nav-texto">Catálogo</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -243,6 +247,40 @@
           </thead>
           <tbody id="tbodyReporte">
             <tr><td colspan="7" class="sin-datos">Genera un reporte para ver los datos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- ── VISTA: CATÁLOGO ───────────────────────────────────── -->
+    <section class="vista oculto" id="vista-catalogo">
+
+      <div class="filtros-barra filtros-barra-catalogo">
+        <div class="catalogo-ayuda">
+          <strong>Edición de nombres</strong>
+          <span>Para guardar cambios el sistema solicitará una clave.</span>
+        </div>
+        <input type="password" id="inputClaveCatalogo" class="input-select input-clave-catalogo" placeholder="Clave de edición" maxlength="20" />
+        <button class="btn btn-primario" id="btnGuardarCatalogo">
+          🔐 Guardar Nombres
+        </button>
+      </div>
+
+      <div class="tabla-contenedor">
+        <table class="tabla-datos" id="tablaCatalogo">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th class="col-numero">Costo</th>
+              <th class="col-numero">Precio</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyCatalogo">
+            <!-- Filas generadas dinámicamente -->
           </tbody>
         </table>
       </div>

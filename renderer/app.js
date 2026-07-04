@@ -38,6 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tbodyMermas      = document.getElementById('tbodyMermas');
   const btnGuardarMermas = document.getElementById('btnGuardarMermas');
 
+  // Catálogo
+  const tbodyCatalogo      = document.getElementById('tbodyCatalogo');
+  const btnGuardarCatalogo = document.getElementById('btnGuardarCatalogo');
+  const inputClaveCatalogo = document.getElementById('inputClaveCatalogo');
+
   // Reportes
   const filtroRango        = document.getElementById('filtroRango');
   const reporteFechaInicio = document.getElementById('reporteFechaInicio');
@@ -59,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Estado local de la UI
   // ─────────────────────────────────────────────
   let fechaSeleccionada = obtenerFechaHoy();
+  const CLAVE_EDICION_CATALOGO = '57915';
 
   // Inicializar inputs de fecha con el día de hoy
   fechaProduccionInput.value = fechaSeleccionada;
@@ -111,6 +117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (vistaDestino === 'reportes') {
         // Ejecutar reporte automático
         generarReporteRapido();
+      } else if (vistaDestino === 'catalogo') {
+        cargarTablaCatalogo();
       }
     });
   });
@@ -192,6 +200,69 @@ document.addEventListener('DOMContentLoaded', async () => {
       cargarTablaMermas(fechaMermasInput.value);
     } else {
       mostrarToast(resultado.errores.join(', '), 'error');
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // Eventos de Catálogo
+  // ─────────────────────────────────────────────
+  btnGuardarCatalogo.addEventListener('click', async () => {
+    const inputs = tbodyCatalogo.querySelectorAll('.input-nombre-producto');
+    const productosEditados = [];
+    let hayErrores = false;
+
+    inputs.forEach(input => {
+      const nombre = input.value.trim().replace(/\s+/g, ' ');
+      input.value = nombre;
+      input.classList.remove('input-error');
+
+      if (!nombre) {
+        input.classList.add('input-error');
+        hayErrores = true;
+      }
+
+      productosEditados.push({
+        id: input.getAttribute('data-id'),
+        nombre
+      });
+    });
+
+    if (hayErrores) {
+      mostrarToast('Todos los productos deben tener un nombre válido', 'error');
+      return;
+    }
+
+    const clave = inputClaveCatalogo.value.trim();
+
+    if (!clave) {
+      mostrarToast('Ingrese la clave para guardar cambios', 'advertencia');
+      return;
+    }
+
+    if (clave !== CLAVE_EDICION_CATALOGO) {
+      mostrarToast('Clave incorrecta. No se guardaron los cambios', 'error');
+      inputClaveCatalogo.focus();
+      inputClaveCatalogo.select();
+      return;
+    }
+
+    try {
+      marcarSincronizado(false);
+      await StorageManager.actualizarNombresCatalogo(productosEditados);
+      marcarSincronizado(true);
+
+      inputClaveCatalogo.value = '';
+      cargarTablaCatalogo();
+      cargarTablaProduccion(fechaProduccionInput.value);
+      cargarTablaMermas(fechaMermasInput.value);
+      actualizarDashboard();
+      generarReporteRapido();
+
+      mostrarToast('Catálogo actualizado correctamente', 'exito');
+    } catch (error) {
+      console.error('Error guardando catálogo:', error);
+      marcarSincronizado(true);
+      mostrarToast(`No se pudo guardar el catálogo: ${error.message || error}`, 'error');
     }
   });
 
@@ -289,6 +360,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     ]
       .map(({ value, label }) => `<option value="${value}" ${motivoActual === value ? 'selected' : ''}>${label}</option>`)
       .join('');
+  }
+
+  function cargarTablaCatalogo() {
+    const catalogo = StorageManager.obtenerCatalogo();
+
+    tbodyCatalogo.innerHTML = '';
+
+    catalogo.forEach((prod, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td><span class="codigo-producto">${prod.id}</span></td>
+        <td>
+          <input type="text"
+                 class="input-nombre-producto"
+                 data-id="${prod.id}"
+                 value="${prod.nombre}"
+                 maxlength="80" />
+        </td>
+        <td><span class="badge-categoria badge-${prod.categoria.toLowerCase()}">${prod.categoria}</span></td>
+        <td class="col-numero">$${Number(prod.costo_unitario).toFixed(2)}</td>
+        <td class="col-numero">$${Number(prod.precio_venta).toFixed(2)}</td>
+      `;
+      tbodyCatalogo.appendChild(tr);
+    });
   }
 
   // ── Tablas de carga ───────────────────────────

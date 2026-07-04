@@ -37,7 +37,7 @@ const StorageManager = (() => {
     { id: 'PAN-003', nombre: 'Pan de Hamburguesa',    categoria: 'Salado',     costo_unitario: 0.40, precio_venta: 0.90 },
     { id: 'PAN-004', nombre: 'Pan de Perro Caliente', categoria: 'Salado',     costo_unitario: 0.35, precio_venta: 0.85 },
     { id: 'PAN-005', nombre: 'Pan Ciabatta',          categoria: 'Salado',     costo_unitario: 0.50, precio_venta: 1.20 },
-    { id: 'PAN-006', nombre: 'Pan de Ajo',            categoria: 'Salado',     costo_unitario: 0.45, precio_venta: 1.10 },
+    { id: 'PAN-006', nombre: 'Pan Sobado',            categoria: 'Salado',     costo_unitario: 0.45, precio_venta: 1.10 },
     { id: 'PAN-007', nombre: 'Pan Integral',          categoria: 'Salado',     costo_unitario: 0.55, precio_venta: 1.30 },
     { id: 'PAN-008', nombre: 'Pan de Queso',          categoria: 'Salado',     costo_unitario: 0.60, precio_venta: 1.50 },
     { id: 'PAN-009', nombre: 'Pan de Jamón',          categoria: 'Salado',     costo_unitario: 0.80, precio_venta: 2.00 },
@@ -116,6 +116,49 @@ const StorageManager = (() => {
     /** Retorna un producto por su ID */
     obtenerProductoPorId(id) {
       return _catalogo.find(p => p.id === id) || null;
+    },
+
+    /** Actualiza y persiste el catálogo maestro completo */
+    async guardarCatalogo(productos) {
+      _catalogo = productos.map(producto => ({ ...producto }));
+      await window.bakeryAPI.guardarCatalogo(_catalogo);
+      console.log(`[Storage] Catálogo guardado: ${_catalogo.length} productos.`);
+    },
+
+    /** Actualiza solo los nombres del catálogo y los persiste */
+    async actualizarNombresCatalogo(productosEditados) {
+      const nombresPorId = new Map(
+        productosEditados.map(producto => [producto.id, producto.nombre])
+      );
+
+      _catalogo = _catalogo.map(producto => {
+        const nombreEditado = nombresPorId.get(producto.id);
+        return {
+          ...producto,
+          nombre: typeof nombreEditado === 'string' ? nombreEditado.trim() : producto.nombre
+        };
+      });
+
+      const resultado = await window.bakeryAPI.guardarCatalogo(_catalogo);
+
+      if (!resultado?.ok) {
+        throw new Error('La API no confirmó el guardado del catálogo');
+      }
+
+      const catalogoPersistido = await window.bakeryAPI.leerCatalogo();
+      const cambiosPendientes = productosEditados.filter(producto => {
+        const persistido = catalogoPersistido.find(item => item.id === producto.id);
+        return !persistido || persistido.nombre !== producto.nombre;
+      });
+
+      if (cambiosPendientes.length > 0) {
+        const idsPendientes = cambiosPendientes.map(producto => producto.id).join(', ');
+        throw new Error(`No se pudieron persistir los cambios para: ${idsPendientes}`);
+      }
+
+      _catalogo = catalogoPersistido;
+      console.log('[Storage] Nombres del catálogo actualizados.');
+      return [..._catalogo];
     },
 
     // ── PRODUCCIÓN ─────────────────────────────
