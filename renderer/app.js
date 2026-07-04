@@ -215,19 +215,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       const inputNombre = fila.querySelector('.input-nombre-producto');
       const inputCosto = fila.querySelector('.input-costo-producto');
       const inputPrecio = fila.querySelector('.input-precio-producto');
+      const inputVisible = fila.querySelector('.input-visible-produccion');
+      const inputPeso = fila.querySelector('.input-peso-producto');
 
-      if (!inputNombre || !inputCosto || !inputPrecio) {
+      if (!inputNombre || !inputCosto || !inputPrecio || !inputVisible || !inputPeso) {
         return;
       }
 
       const nombre = inputNombre.value.trim().replace(/\s+/g, ' ');
       const costo = Number(inputCosto.value);
       const precio = Number(inputPrecio.value);
+      const peso = Number(inputPeso.value);
+      const visibleEnProduccion = inputVisible.checked;
 
       inputNombre.value = nombre;
       inputNombre.classList.remove('input-error');
       inputCosto.classList.remove('input-error');
       inputPrecio.classList.remove('input-error');
+      inputPeso.classList.remove('input-error');
 
       if (!nombre) {
         inputNombre.classList.add('input-error');
@@ -244,16 +249,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         hayErrores = true;
       }
 
+      if (!Number.isFinite(peso) || peso < 0) {
+        inputPeso.classList.add('input-error');
+        hayErrores = true;
+      }
+
       productosEditados.push({
         id: inputNombre.getAttribute('data-id'),
         nombre,
         costo_unitario: costo,
-        precio_venta: precio
+        precio_venta: precio,
+        visible_en_produccion: visibleEnProduccion,
+        peso_unitario: peso
       });
     });
 
     if (hayErrores) {
-      mostrarToast('Revise nombres, costo y precio. No se permiten valores vacíos o negativos', 'error');
+      mostrarToast('Revise nombres, costo, precio y peso. No se permiten valores vacíos o negativos', 'error');
       return;
     }
 
@@ -387,6 +399,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       .join('');
   }
 
+  function obtenerCatalogoVisibleEnProduccion() {
+    return StorageManager
+      .obtenerCatalogo()
+      .filter(prod => prod.visible_en_produccion !== false);
+  }
+
   function cargarTablaCatalogo() {
     const catalogo = StorageManager.obtenerCatalogo();
 
@@ -394,6 +412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     catalogo.forEach((prod, index) => {
       const tr = document.createElement('tr');
+      const visibleEnProduccion = prod.visible_en_produccion !== false;
       tr.innerHTML = `
         <td>${index + 1}</td>
         <td><span class="codigo-producto">${prod.id}</span></td>
@@ -423,6 +442,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                  step="0.01"
                  inputmode="decimal" />
         </td>
+        <td class="col-centro">
+          <label class="checkbox-catalogo">
+            <input type="checkbox"
+                   class="input-visible-produccion"
+                   data-id="${prod.id}"
+                   ${visibleEnProduccion ? 'checked' : ''} />
+            <span>Mostrar</span>
+          </label>
+        </td>
+        <td class="col-numero">
+          <input type="number"
+                 class="input-peso-producto"
+                 data-id="${prod.id}"
+                 value="${Number(prod.peso_unitario || 0).toFixed(2)}"
+                 min="0"
+                 step="0.01"
+                 inputmode="decimal" />
+        </td>
       `;
       tbodyCatalogo.appendChild(tr);
     });
@@ -431,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Tablas de carga ───────────────────────────
 
   function cargarTablaProduccion(fecha) {
-    const catalogo = StorageManager.obtenerCatalogo();
+    const catalogo = obtenerCatalogoVisibleEnProduccion();
     const produccionDia = StorageManager.obtenerProduccionPorFecha(fecha);
 
     tbodyProduccion.innerHTML = '';
@@ -459,7 +496,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function cargarTablaMermas(fecha) {
-    const catalogo = StorageManager.obtenerCatalogo();
+    const catalogo = obtenerCatalogoVisibleEnProduccion();
     const produccionDia = StorageManager.obtenerProduccionPorFecha(fecha);
     const mermasDia = StorageManager.obtenerMermasPorFecha(fecha);
 
