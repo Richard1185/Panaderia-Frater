@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ─────────────────────────────────────────────
   let fechaSeleccionada = obtenerFechaHoy();
   const CLAVE_EDICION_CATALOGO = '57915';
+  let ultimoBalanceReporte = null;
 
   // Inicializar inputs de fecha con el día de hoy
   fechaProduccionInput.value = fechaSeleccionada;
@@ -736,8 +737,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="col-numero verde">$${prod.ingreso_est.toFixed(2)}</td>
           <td class="col-numero rojo">$${prod.perdida_merma.toFixed(2)}</td>
         `;
-        tbodyReporte.appendChild(tr);
       });
+    }
+
+    ultimoBalanceReporte = {
+      balance,
+      fechaInicio,
+      fechaFin
+    };
+    if (typeof actualizarInfoContextoChat === 'function') {
+      actualizarInfoContextoChat();
     }
   }
 
@@ -871,8 +880,427 @@ document.addEventListener('DOMContentLoaded', async () => {
       chartLineas.options.scales.x.ticks.color = colorTexto;
       chartLineas.options.scales.y.grid.color = colorGrid;
       chartLineas.options.scales.y.ticks.color = colorTexto;
-      chartLineas.update('none');
     }
   }
+
+  // ─────────────────────────────────────────────
+  // LÓGICA DEL CHAT DE IA LOCAL (LM STUDIO)
+  // ─────────────────────────────────────────────
+
+  // Referencias a elementos del DOM del Chat
+  const panelChatIA        = document.getElementById('panelChatIA');
+  const chatHeader         = document.getElementById('chatHeader');
+  const chatEstadoLM       = document.getElementById('chatEstadoLM');
+  const btnMinimizarChat   = document.getElementById('btnMinimizarChat');
+  const btnConfigChat      = document.getElementById('btnConfigChat');
+  const btnLimpiarChat     = document.getElementById('btnLimpiarChat');
+  const chatConfigSeccion  = document.getElementById('chatConfigSeccion');
+  const chatUrlLM          = document.getElementById('chatUrlLM');
+  const chatModelLM        = document.getElementById('chatModelLM');
+  const btnProbarConexion  = document.getElementById('btnProbarConexion');
+  const chatCuerpo         = document.getElementById('chatCuerpo');
+  const chkIncluirDatos    = document.getElementById('chkIncluirDatos');
+  const chatContextoInfo   = document.getElementById('chatContextoInfo');
+  const chatInputTexto     = document.getElementById('chatInputTexto');
+  const btnEnviarChat      = document.getElementById('btnEnviarChat');
+  const chatResizer        = document.getElementById('chatResizer');
+
+  // Estado del chat
+  let chatHistorial = [];
+  let estaPensando = false;
+
+  // Cargar configuración inicial de localStorage
+  const guardadoUrl = localStorage.getItem('bakery-chat-url');
+  if (guardadoUrl) chatUrlLM.value = guardadoUrl;
+
+  const chatGuardadoAltura = localStorage.getItem('bakery-chat-altura') || '280';
+  const chatGuardadoEstado = localStorage.getItem('bakery-chat-estado') || 'colapsado';
+
+  // Aplicar altura e inicialización del estado del chat
+  if (chatGuardadoEstado === 'expandido') {
+    panelChatIA.classList.remove('colapsado');
+    panelChatIA.style.height = `${chatGuardadoAltura}px`;
+    btnMinimizarChat.textContent = '▲';
+    btnMinimizarChat.title = 'Minimizar chat';
+  } else {
+    panelChatIA.classList.add('colapsado');
+    panelChatIA.style.height = '';
+    btnMinimizarChat.textContent = '▼';
+    btnMinimizarChat.title = 'Expandir chat';
+  }
+
+  // Generar reporte inicial (última semana por defecto) para tener contexto activo
+  setTimeout(() => {
+    generarReporteRapido();
+  }, 100);
+
+  // Función para actualizar el badge de información del contexto (declaración clásica para hoisting)
+  function actualizarInfoContextoChat() {
+    if (!ultimoBalanceReporte) {
+      chatContextoInfo.textContent = 'Sin datos cargados';
+      chatContextoInfo.classList.add('inactivo');
+      return;
+    }
+
+    if (chkIncluirDatos.checked) {
+      const rangoTexto = ultimoBalanceReporte.fechaInicio === ultimoBalanceReporte.fechaFin
+        ? `${ultimoBalanceReporte.fechaInicio}`
+        : `${ultimoBalanceReporte.fechaInicio} al ${ultimoBalanceReporte.fechaFin}`;
+      chatContextoInfo.textContent = `📎 Contexto activo: Reporte del ${rangoTexto}`;
+      chatContextoInfo.classList.remove('inactivo');
+    } else {
+      chatContextoInfo.textContent = 'Contexto inactivo';
+      chatContextoInfo.classList.add('inactivo');
+    }
+  }
+
+  chkIncluirDatos.addEventListener('change', actualizarInfoContextoChat);
+
+  // Redimensionamiento Vertical (Mouse drag)
+  let m_pos;
+  function resizeChat(e) {
+    const dy = e.clientY - m_pos;
+    m_pos = e.clientY;
+    
+    // Calcular nueva altura
+    const nuevaAltura = parseInt(getComputedStyle(panelChatIA, '').height) + dy;
+    
+    // Límites de altura
+    if (nuevaAltura >= 120 && nuevaAltura <= 600) {
+      panelChatIA.style.height = `${nuevaAltura}px`;
+      localStorage.setItem('bakery-chat-altura', nuevaAltura);
+    }
+  }
+
+  chatResizer.addEventListener('mousedown', function(e) {
+    if (panelChatIA.classList.contains('colapsado')) return; // No redimensionar si está colapsado
+    m_pos = e.clientY;
+    chatResizer.classList.add('arrastrando');
+    // Para que el movimiento sea fluido en Electron, desactivamos la transición CSS temporalmente
+    panelChatIA.style.transition = 'none';
+    
+    document.addEventListener('mousemove', resizeChat);
+    
+    // Evitar selección de texto molesta durante el arrastre
+    e.preventDefault();
+  });
+
+  document.addEventListener('mouseup', function() {
+    chatResizer.classList.remove('arrastrando');
+    panelChatIA.style.transition = ''; // Restaurar la transición CSS normal
+    document.removeEventListener('mousemove', resizeChat);
+  });
+
+  // Colapsar y Expandir el Chat
+  function toggleColapsarChat() {
+    const estaColapsado = panelChatIA.classList.contains('colapsado');
+    if (estaColapsado) {
+      // Expandir
+      panelChatIA.classList.remove('colapsado');
+      const altura = localStorage.getItem('bakery-chat-altura') || '280';
+      panelChatIA.style.height = `${altura}px`;
+      btnMinimizarChat.textContent = '▲';
+      btnMinimizarChat.title = 'Minimizar chat';
+      localStorage.setItem('bakery-chat-estado', 'expandido');
+      // Hacer scroll automático al final cuando se expande
+      setTimeout(() => {
+        chatCuerpo.scrollTop = chatCuerpo.scrollHeight;
+      }, 200);
+    } else {
+      // Colapsar
+      panelChatIA.classList.add('colapsado');
+      panelChatIA.style.height = '';
+      btnMinimizarChat.textContent = '▼';
+      btnMinimizarChat.title = 'Expandir chat';
+      localStorage.setItem('bakery-chat-estado', 'colapsado');
+    }
+  }
+
+  // Hacer click en la cabecera (excepto si hace click en los botones de acción) hace toggle
+  chatHeader.addEventListener('click', (e) => {
+    if (e.target.closest('.chat-header-acciones')) return;
+    toggleColapsarChat();
+  });
+
+  btnMinimizarChat.addEventListener('click', toggleColapsarChat);
+
+  // Mostrar/Ocultar Configuración
+  btnConfigChat.addEventListener('click', () => {
+    chatConfigSeccion.classList.toggle('oculto');
+  });
+
+  // Limpiar Conversación
+  btnLimpiarChat.addEventListener('click', () => {
+    chatHistorial = [];
+    chatCuerpo.innerHTML = `
+      <div class="chat-mensaje sistema">
+        <div class="mensaje-avatar">🤖</div>
+        <div class="mensaje-contenido">
+          <strong>Asistente AI Frater:</strong> Conversación restablecida. ¿En qué más puedo ayudarte hoy con respecto a los reportes?
+        </div>
+      </div>
+    `;
+    mostrarToast('Historial del chat borrado', 'exito');
+  });
+
+  // Probar Conexión y Cargar Modelos de LM Studio
+  async function verificarConexionLMStudio(silencioso = false) {
+    const url = chatUrlLM.value.trim();
+    chatEstadoLM.textContent = 'Conectando...';
+    chatEstadoLM.className = 'chat-badge-estado conectando';
+
+    // Estado temporal en el selector
+    chatModelLM.innerHTML = '<option value="">Buscando modelos...</option>';
+    chatModelLM.disabled = true;
+
+    // Consultar modelos a través del proceso principal (IPC) para evitar restricciones de CSP
+    const result = await window.bakeryAPI.obtenerModelosLMStudio(url);
+
+    if (result.ok && result.data && result.data.data) {
+      chatEstadoLM.textContent = 'Conectado';
+      chatEstadoLM.className = 'chat-badge-estado conectado';
+
+      const modelos = result.data.data;
+      chatModelLM.innerHTML = '';
+
+      if (modelos.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Sin modelos cargados';
+        chatModelLM.appendChild(opt);
+        chatModelLM.disabled = true;
+      } else {
+        modelos.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.id;
+          chatModelLM.appendChild(opt);
+        });
+        chatModelLM.disabled = false;
+
+        // Seleccionar el modelo guardado si existe en la lista
+        const guardadoModelo = localStorage.getItem('bakery-chat-modelo');
+        if (guardadoModelo && modelos.some(m => m.id === guardadoModelo)) {
+          chatModelLM.value = guardadoModelo;
+        } else {
+          // Por defecto selecciona el primero
+          chatModelLM.selectedIndex = 0;
+          localStorage.setItem('bakery-chat-modelo', chatModelLM.value);
+        }
+      }
+
+      if (!silencioso) mostrarToast('Conexión con LM Studio exitosa', 'exito');
+      return true;
+    } else {
+      chatEstadoLM.textContent = 'Desconectado';
+      chatEstadoLM.className = 'chat-badge-estado desconectado';
+      chatModelLM.innerHTML = '<option value="">Servidor desconectado</option>';
+      chatModelLM.disabled = true;
+
+      const errorMsg = result.error || 'Servidor no responde';
+      if (!silencioso) {
+        mostrarToast('No se pudo conectar con LM Studio. Verifique el servidor.', 'error');
+        console.error('Error de conexión:', errorMsg);
+      }
+      return false;
+    }
+  }
+
+  btnProbarConexion.addEventListener('click', () => verificarConexionLMStudio(false));
+
+  // Verificar conexión inicial de forma silenciosa al arrancar
+  verificarConexionLMStudio(true);
+
+  // Guardar configuración al cambiar inputs
+  chatUrlLM.addEventListener('change', () => {
+    localStorage.setItem('bakery-chat-url', chatUrlLM.value.trim());
+    verificarConexionLMStudio(true);
+  });
+
+  chatModelLM.addEventListener('change', () => {
+    if (chatModelLM.value) {
+      localStorage.setItem('bakery-chat-modelo', chatModelLM.value);
+      console.log(`[Chat] Modelo seleccionado: ${chatModelLM.value}`);
+    }
+  });
+
+  // Agregar Mensajes a la Interfaz Visual
+  function agregarMensajeVisual(rol, contenido, esPensando = false) {
+    const div = document.createElement('div');
+    div.className = `chat-mensaje ${rol === 'user' ? 'usuario' : 'sistema'}`;
+    if (esPensando) div.classList.add('pensando');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'mensaje-avatar';
+    avatar.textContent = rol === 'user' ? '👤' : '🤖';
+
+    const cuerpoMsg = document.createElement('div');
+    cuerpoMsg.className = 'mensaje-contenido';
+    
+    if (esPensando) {
+      cuerpoMsg.innerHTML = '<div class="dot-flashing"></div>';
+    } else {
+      cuerpoMsg.innerHTML = rol === 'user' 
+        ? `<strong>Tú:</strong> ${contenido}` 
+        : `<strong>Asistente AI:</strong> ${contenido}`;
+    }
+
+    div.appendChild(avatar);
+    div.appendChild(cuerpoMsg);
+    chatCuerpo.appendChild(div);
+    chatCuerpo.scrollTop = chatCuerpo.scrollHeight;
+
+    return div;
+  }
+
+  function escaparHTML(valor) {
+    return String(valor ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function esErrorDeCargaDeModelo(result) {
+    const detalle = `${result?.error || ''}\n${result?.detail || ''}`.toLowerCase();
+    return (result?.status === 400 || detalle.includes('invalid_request_error')) &&
+      (detalle.includes('failed to load model') ||
+       detalle.includes('insufficient system resources') ||
+       detalle.includes('requires approximately'));
+  }
+
+  function construirMensajeErrorLMStudio(result, url) {
+    const detalleSeguro = escaparHTML(result?.error || 'No se recibió una respuesta válida del servidor local de LM Studio.');
+
+    if (esErrorDeCargaDeModelo(result)) {
+      return `
+        <div class="mensaje-avatar" style="border-color: var(--acento-rojo)">❌</div>
+        <div class="mensaje-contenido" style="border-color: var(--acento-rojo); color: var(--acento-rojo)">
+          <strong>Modelo no disponible:</strong> LM Studio respondió, pero no pudo cargar el modelo seleccionado por falta de memoria.<br>
+          <small>Detalle: ${detalleSeguro}</small><br><br>
+          <span style="font-size: 11px; color: var(--texto-secundario)">El servidor sí está accesible en <code>${escaparHTML(url)}</code>. Usa un modelo más liviano o reduce los guardrails de carga en LM Studio si sabes que tu equipo lo soporta.</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="mensaje-avatar" style="border-color: var(--acento-rojo)">❌</div>
+      <div class="mensaje-contenido" style="border-color: var(--acento-rojo); color: var(--acento-rojo)">
+        <strong>Error de Conexión:</strong> No se pudo obtener respuesta del servidor de LM Studio.<br>
+        <small>Detalle: ${detalleSeguro}</small><br><br>
+        <span style="font-size: 11px; color: var(--texto-secundario)">Asegúrate de que LM Studio está ejecutándose en <code>${escaparHTML(url)}</code> y que has iniciado el servidor local.</span>
+      </div>
+    `;
+  }
+
+  // Enviar mensaje
+  async function enviarMensajeAI() {
+    const texto = chatInputTexto.value.trim();
+    if (!texto || estaPensando) return;
+
+    // Verificar si el chat está colapsado y abrirlo si el usuario escribe y envía
+    if (panelChatIA.classList.contains('colapsado')) {
+      toggleColapsarChat();
+    }
+
+    estaPensando = true;
+    chatInputTexto.value = '';
+    chatInputTexto.disabled = true;
+    btnEnviarChat.disabled = true;
+
+    // Agregar mensaje de usuario
+    agregarMensajeVisual('user', texto);
+    chatHistorial.push({ role: 'user', content: texto });
+
+    // Agregar indicador de cargando (pensando)
+    const loaderElement = agregarMensajeVisual('assistant', '', true);
+
+    const url = chatUrlLM.value.trim();
+    const model = chatModelLM.value.trim();
+
+    // Construir System Prompt con el contexto del reporte de la Panadería Frater
+    let systemPrompt = `Eres un asistente AI experto en análisis de reportes de datos de negocio para la 'Panadería Frater' (también llamada 'Frater Panaderia').
+Tu objetivo es ayudar al administrador a interpretar y analizar la información sobre la producción, mermas de productos, unidades vencidas, ventas estimadas y balance financiero (ingresos estimados y pérdidas por merma).
+Responde siempre y exclusivamente en español, aunque el usuario escriba en otro idioma o mezcle idiomas.
+No devuelvas frases, cierres ni encabezados en inglés.
+Si necesitas mencionar un término técnico, explícalo en español.
+Mantén un tono muy claro, analítico, profesional y conciso (evita introducciones o explicaciones innecesariamente largas).
+Usa un formato estructurado o viñetas cuando sea relevante para facilitar la lectura de datos financieros.`;
+
+    if (chkIncluirDatos.checked && ultimoBalanceReporte) {
+      systemPrompt += `\n\nCONTEXTO DE NEGOCIO ACTIVO (Reporte en pantalla):
+Período de análisis: del ${formatearFecha(ultimoBalanceReporte.fechaInicio)} al ${formatearFecha(ultimoBalanceReporte.fechaFin)}.
+
+TOTALES GENERALES EN EL PERÍODO:
+- Producción total: ${ultimoBalanceReporte.balance.totales.producido} unidades
+- Mermas totales: ${ultimoBalanceReporte.balance.totales.mermas} unidades
+- Ventas estimadas: ${ultimoBalanceReporte.balance.totales.ventas} unidades
+- Ingresos estimados: $${ultimoBalanceReporte.balance.totales.ingresos.toFixed(2)} USD
+- Pérdidas financieras por mermas: $${ultimoBalanceReporte.balance.totales.perdidas.toFixed(2)} USD
+
+DETALLE DE MOVIMIENTOS POR PRODUCTO (Productos activos):
+${ultimoBalanceReporte.balance.detalle.map(p => `- ${p.producto} (Categoría: ${p.categoria}): Producción=${p.produccion} und, Mermas=${p.mermas} und, Ventas Estimadas=${p.ventas} und, Ingreso Est.=$${p.ingreso_est.toFixed(2)}, Pérdida por Merma=$${p.perdida_merma.toFixed(2)}`).join('\n')}
+
+Por favor, responde a las preguntas del usuario basándote en los datos anteriores. Si el usuario te hace preguntas no relacionadas con estos datos, intenta responder de forma útil pero recuérdale que tu especialidad es analizar los reportes de la Panadería Frater.`;
+    } else {
+      systemPrompt += `\n\nNota: Actualmente el usuario no ha adjuntado los datos del reporte activo o el reporte está vacío, así que responde basándote en conocimientos generales del negocio, pero avísale sutilmente que puede activar el checkbox para incluir los reportes reales.`;
+    }
+
+    // Preparar el cuerpo de mensajes para la API
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...chatHistorial
+    ];
+
+    // Llamar al backend de Electron a través de la API segura
+    const result = await window.bakeryAPI.consultarLMStudio({
+      url,
+      messages,
+      model
+    });
+
+    // Remover indicador de cargando
+    loaderElement.remove();
+
+    if (result.ok && result.data && result.data.choices && result.data.choices[0]) {
+      const respuestaTexto = result.data.choices[0].message.content;
+      agregarMensajeVisual('assistant', respuestaTexto);
+      chatHistorial.push({ role: 'assistant', content: respuestaTexto });
+      
+      // Actualizar el estado de conexión
+      chatEstadoLM.textContent = 'Conectado';
+      chatEstadoLM.className = 'chat-badge-estado conectado';
+    } else {
+      const msgError = result.error || 'No se recibió una respuesta válida del servidor local de LM Studio.';
+      console.error('Error de IA:', msgError);
+      
+      const divErr = document.createElement('div');
+      divErr.className = 'chat-mensaje sistema';
+      divErr.innerHTML = construirMensajeErrorLMStudio(result, url);
+      chatCuerpo.appendChild(divErr);
+      chatCuerpo.scrollTop = chatCuerpo.scrollHeight;
+
+      if (esErrorDeCargaDeModelo(result)) {
+        chatEstadoLM.textContent = 'Conectado';
+        chatEstadoLM.className = 'chat-badge-estado conectado';
+      } else {
+        chatEstadoLM.textContent = 'Desconectado';
+        chatEstadoLM.className = 'chat-badge-estado desconectado';
+      }
+    }
+
+    estaPensando = false;
+    chatInputTexto.disabled = false;
+    btnEnviarChat.disabled = false;
+    chatInputTexto.focus();
+  }
+
+  btnEnviarChat.addEventListener('click', enviarMensajeAI);
+  chatInputTexto.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      enviarMensajeAI();
+    }
+  });
 
 });

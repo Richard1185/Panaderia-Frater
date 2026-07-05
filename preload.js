@@ -32,4 +32,11 @@ contextBridge.exposeInMainWorld('bakeryAPI', {
   /** Persiste todos los registros de mermas */
   guardarMermas: (registros) => ipcRenderer.invoke('datos:guardarMermas', registros),
 
+  // ── IA Local / LM Studio ──────────────────────────────────
+  /** Consulta el servidor local de LM Studio */
+  consultarLMStudio: (datos) => ipcRenderer.invoke('ai:consultarLMStudio', datos),
+
+  /** Obtiene la lista de modelos de LM Studio */
+  obtenerModelosLMStudio: (url) => ipcRenderer.invoke('ai:obtenerModelosLMStudio', url),
+
 });

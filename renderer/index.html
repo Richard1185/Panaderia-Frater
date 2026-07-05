@@ -70,6 +70,71 @@
       </div>
     </header>
 
+    <!-- ═══════════════════════════════════════════════════════════
+         PANEL DE CHAT DE IA LOCAL (LM STUDIO) - REDIMENSIONABLE
+    ══════════════════════════════════════════════════════════════ -->
+    <div class="panel-chat-container colapsado" id="panelChatIA">
+      <div class="chat-header" id="chatHeader">
+        <div class="chat-header-titulo">
+          <span class="chat-icono-robot">🤖</span>
+          <span class="chat-titulo-texto">Asistente AI Frater</span>
+          <span class="chat-badge-estado desconectado" id="chatEstadoLM">Desconectado</span>
+        </div>
+        <div class="chat-header-acciones">
+          <button class="btn-chat-accion" id="btnMinimizarChat" title="Expandir chat">▼</button>
+          <button class="btn-chat-accion" id="btnConfigChat" title="Configurar conexión">⚙️</button>
+          <button class="btn-chat-accion" id="btnLimpiarChat" title="Limpiar conversación">🗑️</button>
+        </div>
+      </div>
+
+      <!-- Sección de configuración colapsable -->
+      <div class="chat-config-seccion oculto" id="chatConfigSeccion">
+        <div class="config-grid">
+          <div class="config-input-grupo">
+            <label for="chatUrlLM">URL Servidor LM Studio:</label>
+            <input type="text" id="chatUrlLM" class="input-select" value="http://localhost:1234/v1" />
+          </div>
+          <div class="config-input-grupo">
+            <label for="chatModelLM">Modelo Activo:</label>
+            <select id="chatModelLM" class="input-select">
+              <option value="">Cargando modelos...</option>
+            </select>
+          </div>
+          <div class="config-botones">
+            <button class="btn btn-secundario btn-compacto" id="btnProbarConexion" type="button">Probar Conexión</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cuerpo del Chat: Mensajes -->
+      <div class="chat-cuerpo" id="chatCuerpo">
+        <div class="chat-mensaje sistema">
+          <div class="mensaje-avatar">🤖</div>
+          <div class="mensaje-contenido">
+            <strong>Asistente AI Frater:</strong> ¡Hola! Soy tu asistente de inteligencia de datos. Puedo analizar los reportes, producción, mermas y balance financiero actuales de la <strong>Panadería Frater</strong>. Pregúntame lo que desees sobre el período activo.
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de herramientas e input de texto -->
+      <div class="chat-pie">
+        <div class="chat-opciones">
+          <label class="chat-checkbox-label">
+            <input type="checkbox" id="chkIncluirDatos" checked />
+            📎 Incluir datos del reporte activo como contexto de negocio
+          </label>
+          <span class="chat-contexto-info" id="chatContextoInfo">Inicializando reporte...</span>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInputTexto" class="input-chat" placeholder="Pregúntame sobre pérdidas, mermas, productos estrella o recomendaciones..." />
+          <button class="btn btn-primario" id="btnEnviarChat">Preguntar ⚡</button>
+        </div>
+      </div>
+
+      <!-- Tirador para redimensionar verticalmente -->
+      <div class="chat-resizer" id="chatResizer"></div>
+    </div>
+
     <!-- ── VISTA: DASHBOARD ──────────────────────────────────── -->
     <section class="vista" id="vista-dashboard">
 

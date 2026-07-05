@@ -147,6 +147,69 @@ ipcMain.handle('datos:guardarMermas', (event, registros) => {
   return { ok: true };
 });
 
+// Handler: Obtener modelos cargados en LM Studio
+ipcMain.handle('ai:obtenerModelosLMStudio', async (event, url) => {
+  try {
+    const endpoint = `${url.replace(/\/$/, '')}/models`;
+    console.log(`[main] Obteniendo modelos de IA local en: ${endpoint}`);
+    
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(3000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (error) {
+    console.error('[main] Error al obtener modelos de LM Studio:', error);
+    return { ok: false, error: error.message };
+  }
+});
+
+// Handler: Consultar servidor local LM Studio (API de OpenAI compatible)
+ipcMain.handle('ai:consultarLMStudio', async (event, { url, messages, model }) => {
+  try {
+    const endpoint = `${url.replace(/\/$/, '')}/chat/completions`;
+    console.log(`[main] Consultando IA local en: ${endpoint} usando modelo: ${model}`);
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model || 'local-model',
+        messages: messages,
+        temperature: 0.7,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const textError = await response.text();
+      return {
+        ok: false,
+        status: response.status,
+        error: `HTTP ${response.status}: ${textError || response.statusText}`,
+        detail: textError || response.statusText
+      };
+    }
+
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (error) {
+    console.error('[main] Error en llamada a LM Studio:', error);
+    return { ok: false, error: error.message, detail: error.message };
+  }
+});
+
 // ─────────────────────────────────────────────
 // Ciclo de vida de la aplicación
 // ─────────────────────────────────────────────
