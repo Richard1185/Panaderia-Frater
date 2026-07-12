@@ -5,14 +5,17 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --inspect"
+    "dev": "electron . --inspect",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win nsis",
+    "build:win32": "electron-builder --win nsis --ia32"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
-    "electron": "^41.9.1",
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "electron": "^41.9.1",
     "electron-builder": "^24.0.0"
   },
   "build": {
@@ -21,11 +24,31 @@
     "directories": {
       "output": "dist"
     },
+    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
     "files": [
       "main.js",
       "preload.js",
       "renderer/**/*",
+      "assets/**/*",
       "data/**/*"
-    ]
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "ia32"
+          ]
+        }
+      ],
+      "icon": "assets/bread-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bakery ERP"
+    }
   }
 }

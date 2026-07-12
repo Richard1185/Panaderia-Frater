@@ -15,6 +15,8 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 
+const APP_ICON = path.join(__dirname, 'assets', 'bread-icon.png');
+
 // ─────────────────────────────────────────────
 // Rutas de datos persistentes en el sistema
 // ─────────────────────────────────────────────
@@ -52,6 +54,7 @@ function createMainWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
+    icon: APP_ICON,
     title: 'Bakery ERP — Control de Producción',
     backgroundColor: '#1a1a2e',   // Evita flash blanco al cargar
     show: false,                   // Se muestra solo cuando está lista la UI
